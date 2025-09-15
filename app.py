@@ -117,25 +117,25 @@ def google_chatbot_query(message: str):
 @st.cache_data
 def load_models():
     try:
-        logreg = joblib.load("models/logreg_baseline.joblib")
+        logreg = joblib.load("logreg_baseline.joblib")
     except:
         logreg = None
     
     try:
         xgb_heart = xgb.XGBClassifier()
-        xgb_heart.load_model("models/xgb_heart.json")
+        xgb_heart.load_model("xgb_heart.json")
     except:
         xgb_heart = None
     
     try:
         xgb_diabetes = xgb.XGBClassifier()
-        xgb_diabetes.load_model("models/xgb_diabetes.json")
+        xgb_diabetes.load_model("xgb_diabetes.json")
     except:
         xgb_diabetes = None
     
     try:
         xgb_hyper = xgb.XGBClassifier()
-        xgb_hyper.load_model("models/xgb_hypertension.json")
+        xgb_hyper.load_model("xgb_hypertension.json")
     except:
         xgb_hyper = None
     
@@ -144,7 +144,7 @@ def load_models():
 @st.cache_data
 def load_median_values():
     try:
-        df = pd.read_csv("data/heart.csv")
+        df = pd.read_csv("heart.csv")
         medians = {
             "age": int(df["age"].median()),
             "trestbps": int(df["trestbps"].median()),
@@ -809,3 +809,4 @@ def main():
 # ------------------------
 if __name__ == "__main__":
     main()
+
