@@ -87,9 +87,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------
-# Google Gemini Setup (From Chatbot Code)
+# Google Gemini Setup
 # ------------------------
-GOOGLE_API_KEY = "AIzaSyANnfoI2zSuanVqLEk7oqXq-q-whzPFouA"  # Your provided key
+GOOGLE_API_KEY = "AIzaSyANnfoI2zSuanVqLEk7oqXq-q-whzPFouA"
 genai.configure(api_key=GOOGLE_API_KEY)
 
 CHAT_MODEL_NAME = "models/gemini-2.0-flash-exp"
@@ -112,7 +112,7 @@ def google_chatbot_query(message: str):
         return f"⚠ Error: {e}"
 
 # ------------------------
-# Load Models & Data (From Chatbot Code)
+# Load Models & Data
 # ------------------------
 @st.cache_data
 def load_models():
@@ -165,55 +165,86 @@ def load_median_values():
         }
 
 # ------------------------
-# Input Encoding (Heart Model) - From Chatbot Code
+# FIXED Input Encoding Function
 # ------------------------
 def encode_input(
     age: int, sex: str, cp: str, trestbps: int, chol: int,
     fbs: str, restecg: str, thalach: int, exang: str,
     oldpeak: float, slope: str, ca: int, thal: str
 ) -> pd.DataFrame:
+    """FIXED: Create proper feature names that match XGBoost model"""
+    
+    # Basic numeric features
     sex_val = 1 if sex == "Male" else 0
     fbs_val = 1 if fbs == "Yes" else 0
     exang_val = 1 if exang == "Yes" else 0
-    cp_code = {"typical angina": 0, "atypical angina": 1, "non-anginal pain": 2, "asymptomatic": 3}[cp]
-    if cp_code == 0: cp_vals = [0,0,0]
-    elif cp_code == 1: cp_vals = [1,0,0]
-    elif cp_code == 2: cp_vals = [0,1,0]
-    else: cp_vals = [0,0,1]
-    restecg_code = {"Normal":0,"ST-T wave abnormality":1,"Left ventricular hypertrophy":2}[restecg]
-    if restecg_code == 0: restecg_vals=[0,0]
-    elif restecg_code == 1: restecg_vals=[1,0]
-    else: restecg_vals=[0,1]
-    slope_code = {"Upsloping":0,"Flat":1,"Downsloping":2}[slope]
-    if slope_code==0: slope_vals=[0,0]
-    elif slope_code==1: slope_vals=[1,0]
-    else: slope_vals=[0,1]
-    thal_code = {"Fixed defect":1,"Reversible defect":2,"Normal":3}[thal]
-    if thal_code==0: thal_vals=[0,0,0]
-    elif thal_code==1: thal_vals=[1,0,0]
-    elif thal_code==2: thal_vals=[0,1,0]
-    else: thal_vals=[0,0,1]
-    feature_vector = [
-        age, sex_val, trestbps, chol, fbs_val, thalach, exang_val, oldpeak, ca,
-        *cp_vals, *restecg_vals, *slope_vals, *thal_vals
+    
+    # One-hot encode chest pain type
+    cp_code = {"typical angina": 1, "atypical angina": 2, "non-anginal pain": 3, "asymptomatic": 4}[cp]
+    cp_1 = 1.0 if cp_code == 1 else 0.0
+    cp_2 = 1.0 if cp_code == 2 else 0.0
+    cp_3 = 1.0 if cp_code == 3 else 0.0
+    cp_4 = 1.0 if cp_code == 4 else 0.0
+    
+    # One-hot encode resting ECG
+    restecg_code = {"Normal": 0, "ST-T wave abnormality": 1, "Left ventricular hypertrophy": 2}[restecg]
+    restecg_0 = 1.0 if restecg_code == 0 else 0.0
+    restecg_1 = 1.0 if restecg_code == 1 else 0.0
+    restecg_2 = 1.0 if restecg_code == 2 else 0.0
+    
+    # One-hot encode slope
+    slope_code = {"Upsloping": 1, "Flat": 2, "Downsloping": 3}[slope]
+    slope_1 = 1.0 if slope_code == 1 else 0.0
+    slope_2 = 1.0 if slope_code == 2 else 0.0
+    slope_3 = 1.0 if slope_code == 3 else 0.0
+    
+    # One-hot encode thalassemia
+    thal_code = {"Normal": 3, "Fixed defect": 6, "Reversible defect": 7}[thal]
+    thal_3 = 1.0 if thal_code == 3 else 0.0
+    thal_6 = 1.0 if thal_code == 6 else 0.0
+    thal_7 = 1.0 if thal_code == 7 else 0.0
+    
+    # Create DataFrame with EXACT feature names expected by XGBoost model
+    data = {
+        'age': [float(age)],
+        'sex': [float(sex_val)],
+        'trestbps': [float(trestbps)],
+        'chol': [float(chol)],
+        'fbs': [float(fbs_val)],
+        'thalach': [float(thalach)],
+        'exang': [float(exang_val)],
+        'oldpeak': [float(oldpeak)],
+        'ca': [float(ca)],
+        'cp_1.0': [cp_1],
+        'cp_2.0': [cp_2],
+        'cp_3.0': [cp_3],
+        'cp_4.0': [cp_4],
+        'restecg_0.0': [restecg_0],
+        'restecg_1.0': [restecg_1],
+        'restecg_2.0': [restecg_2],
+        'slope_1.0': [slope_1],
+        'slope_2.0': [slope_2],
+        'slope_3.0': [slope_3],
+        'thal_3.0': [thal_3],
+        'thal_6.0': [thal_6],
+        'thal_7.0': [thal_7]
+    }
+    
+    # Create DataFrame with proper column order
+    expected_columns = [
+        'age', 'sex', 'trestbps', 'chol', 'fbs', 'thalach', 'exang', 'oldpeak', 'ca',
+        'cp_1.0', 'cp_2.0', 'cp_3.0', 'cp_4.0', 
+        'restecg_0.0', 'restecg_1.0', 'restecg_2.0',
+        'slope_1.0', 'slope_2.0', 'slope_3.0',
+        'thal_3.0', 'thal_6.0', 'thal_7.0'
     ]
     
-    try:
-        _, xgb_heart, _, _ = load_models()
-        if xgb_heart:
-            feature_names = xgb_heart.get_booster().feature_names
-            X_new = pd.DataFrame([feature_vector], columns=feature_names)
-            return X_new
-    except:
-        pass
+    X_new = pd.DataFrame(data, columns=expected_columns)
     
-    # Fallback with generic feature names
-    feature_names = [f'feature_{i}' for i in range(len(feature_vector))]
-    X_new = pd.DataFrame([feature_vector], columns=feature_names)
     return X_new
 
 # ------------------------
-# Alert Functions (Placeholders)
+# Alert Functions
 # ------------------------
 def check_early_warning_heart(raw_feats):
     warnings = []
@@ -245,7 +276,7 @@ def preventive_tips_disease(disease):
     return tips.get(disease, ["Consult with healthcare provider"])
 
 # ------------------------
-# Enhanced Wellness Assistant Class (From App-7)
+# Enhanced Wellness Assistant Class
 # ------------------------
 class WellnessAssistant:
     def __init__(self):
@@ -445,7 +476,7 @@ def main():
         key="main_nav"
     )
     
-    # ---------------- Heart Disease (From Chatbot Code) ----------------
+    # ---------------- Heart Disease (FIXED) ----------------
     if page == "Heart Disease":
         st.header("🫀 Heart Disease Risk Assessment")
         
@@ -474,7 +505,7 @@ def main():
         oldpeak = st.sidebar.slider("ST depression (oldpeak)", 0.0, 6.2, oldpeak_default, step=0.1, key="heart_oldpeak")
         slope = st.sidebar.selectbox("Slope", ["Upsloping", "Flat", "Downsloping"], key="heart_slope")
         ca = st.sidebar.selectbox("Major vessels (0–3)", [0,1,2,3], index=ca_default, key="heart_ca")
-        thal = st.sidebar.selectbox("Thalassemia", ["Fixed defect", "Reversible defect", "Normal"], key="heart_thal")
+        thal = st.sidebar.selectbox("Thalassemia", ["Normal", "Fixed defect", "Reversible defect"], key="heart_thal")
         
         if st.session_state["reset"]:
             st.session_state["reset"] = False
@@ -493,7 +524,13 @@ def main():
                 st.success("✅ No immediate red-flag values detected.")
             
             try:
+                # FIXED: Use proper encode_input function
                 X_new = encode_input(age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal)
+                
+                st.write(f"✅ Input features shape: {X_new.shape}")
+                st.write(f"✅ Feature columns: {list(X_new.columns)}")
+                
+                # Make prediction
                 prob = xgb_heart.predict_proba(X_new)[0,1]
                 
                 st.subheader(f"🎯 Predicted Risk of Heart Disease: {prob:.1%}")
@@ -536,8 +573,10 @@ def main():
                 
             except Exception as e:
                 st.error(f"❌ Prediction error: {str(e)}")
+                import traceback
+                st.error(f"Detailed error: {traceback.format_exc()}")
     
-    # ---------------- Diabetes (From Chatbot Code) ----------------
+    # ---------------- Diabetes (From Previous Code) ----------------
     elif page == "Type 2 Diabetes":
         st.header("🩸 Type 2 Diabetes Risk Assessment")
         
@@ -598,7 +637,7 @@ def main():
             except Exception as e:
                 st.error(f"❌ Prediction error: {str(e)}")
     
-    # ---------------- Hypertension (From Chatbot Code) ----------------
+    # ---------------- Hypertension (From Previous Code) ----------------
     elif page == "Hypertension":
         st.header("🩺 Hypertension Risk Assessment")
         
@@ -673,7 +712,7 @@ def main():
             except Exception as e:
                 st.error(f"❌ Prediction error: {str(e)}")
     
-    # ---------------- Chatbot (From Chatbot Code) ----------------
+    # ---------------- Chatbot (From Previous Code) ----------------
     elif page == "💬 AI Chatbot":
         st.header("🤖 Health Assistant Chatbot (Google Gemini)")
         
@@ -743,7 +782,7 @@ def main():
                         st.session_state.chat_history.append(("Bot", bot_reply))
                         st.rerun()
 
-    # ---------------- Overall Assessment (From App-7) ----------------
+    # ---------------- Overall Assessment ----------------
     elif page == "📊 Overall Assessment":
         st.header("📊 Comprehensive Health Assessment")
         
@@ -809,4 +848,3 @@ def main():
 # ------------------------
 if __name__ == "__main__":
     main()
-
