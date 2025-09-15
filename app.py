@@ -89,7 +89,7 @@ st.markdown("""
 # ------------------------
 # Google Gemini Setup
 # ------------------------
-GOOGLE_API_KEY = "AIzaSyANnfoI2zSuanVqLEk7oqXq-q-whzPFouA"
+GOOGLE_API_KEY = "AIzaSyAZxxa76tpI0Wja05_birLVbo-cxXUsWRM"
 genai.configure(api_key=GOOGLE_API_KEY)
 
 CHAT_MODEL_NAME = "models/gemini-2.0-flash-exp"
@@ -848,3 +848,4 @@ def main():
 # ------------------------
 if __name__ == "__main__":
     main()
+
